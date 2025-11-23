@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+spec:
+  replicas: 1 # Cambiaremos esto a 2 y 3 durante las pruebas
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          # 👇 ¡CAMBIA ESTO POR TU IMAGEN DE DOCKER HUB!
+          image: lutright07/backend-proyecto:v1
+
+          # En la nube usamos 'Always' para que descargue la versión más reciente
+          imagePullPolicy: Always
+
+          ports:
+            - containerPort: 8000
+
+          # Carga las variables de entorno del ConfigMap (DB host, user, etc.)
+          envFrom:
+            - configMapRef:
+                name: app-config
+
+          # Carga las contraseñas desde los Secretos
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: POSTGRES_PASSWORD
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: SECRET_KEY
+            - name: FIRST_SUPERUSER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: app-secrets
+                  key: FIRST_SUPERUSER_PASSWORD
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  # 👇 Esto le dice a DigitalOcean que te asigne una IP PÚBLICA REAL
+  type: LoadBalancer
+  selector:
+    app: backend
+  ports:
+    - protocol: TCP
+      port: 8000 # Puerto externo (al que atacarás con JMeter)
+      targetPort: 8000 # Puerto interno del contenedor
